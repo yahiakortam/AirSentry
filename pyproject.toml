@@ -36,6 +36,7 @@ dependencies = [
 
 [project.optional-dependencies]
 viz = ["matplotlib>=3.7.0"]
+ui  = ["PySide6>=6.6.0"]
 dev = [
     "pytest>=7.0",
     "pytest-cov",
@@ -44,7 +45,8 @@ dev = [
 ]
 
 [project.scripts]
-airsentry = "airsentry.cli.main:app"
+airsentry    = "airsentry.cli.main:app"
+airsentry-ui = "airsentry.ui.app:run"
 
 [project.urls]
 Repository = "https://github.com/yahiakortam/AirSentry"
