@@ -7,6 +7,7 @@ from typing import Optional
 
 import typer
 
+from airsentry.analysis.session import SessionAccumulator
 from airsentry.capture.base import CaptureError
 from airsentry.capture.pcap import PcapCapture
 from airsentry.config.settings import load_settings
@@ -26,7 +27,7 @@ def replay(
         "--file", "-f",
         help="Path to the PCAP or PCAPng file to replay.",
         show_default=False,
-        exists=False,    # We validate manually to give a better error message
+        exists=False,
     ),
     rate: Optional[int] = typer.Option(
         None,
@@ -93,7 +94,6 @@ def replay(
 
     effective_rate: Optional[int] = None
     if fast:
-        # Signal PcapCapture to disable all timing by using very high rate
         effective_rate = 0
     elif rate is not None:
         effective_rate = rate
@@ -109,8 +109,8 @@ def replay(
 
     dispatcher = FrameDispatcher()
     engine = DetectionEngine.default_engine(settings) if detect else None
+    session = SessionAccumulator()
 
-    # Phase 3: Analysis Collector
     collector: Optional[ResearchCollector] = None
     if analyze:
         collector = ResearchCollector(
@@ -121,6 +121,7 @@ def replay(
 
     total_packets = 0
     all_alerts = []
+    last_scored = None
 
     out.print_session_header(capture.source_description)
     if fast:
@@ -135,7 +136,6 @@ def replay(
     else:
         out.print_info("Detection engine disabled (--no-detect).")
 
-    # Resolve log path
     log_dir = Path(settings.logging.log_dir) if settings.logging.log_dir else None
     effective_log_path = log_file
 
@@ -166,6 +166,10 @@ def replay(
             event = dispatcher.dispatch(packet)
             if event is None:
                 continue
+
+            # Accumulate session-wide stats before display filtering
+            session.feed(event)
+
             if allowed_types and event.frame_type.name.lower() not in allowed_types:
                 continue
 
@@ -178,9 +182,9 @@ def replay(
                 collector.feed(event)
                 scored = collector.tick(event.timestamp)
                 if scored:
+                    last_scored = scored
                     out.print_window_stats(scored)
                     if scored.anomaly_score >= settings.analysis.anomaly_threshold:
-                        # Create a synthetic alert for the anomaly
                         from airsentry.models.alerts import AlertType, Severity, make_alert
                         anomaly_alert = make_alert(
                             alert_type=AlertType.ANOMALY_SCORE,
@@ -216,12 +220,20 @@ def replay(
         out.console.rule("[dim]Detection Alerts[/dim]", style="dim red")
         out.print_alert_summary(all_alerts)
 
+    # Session summary dashboard
+    summary = session.summary(
+        total_packets=total_packets,
+        alerts_raised=len(all_alerts),
+        windows_analyzed=collector.windows_analyzed if collector else 0,
+        last_anomaly_score=last_scored.anomaly_score if last_scored else None,
+        is_model_fitted=last_scored.is_model_fitted if last_scored else False,
+    )
+    out.print_session_summary(summary)
+
     if logger:
         try:
             logger.log_session_summary({
-                "total_packets":   total_packets,
-                "parsed_frames":   sum(dispatcher.stats.values()),
-                "alerts_raised":   len(all_alerts),
+                **summary.to_dict(),
                 "frame_breakdown": dispatcher.stats,
             })
         finally:

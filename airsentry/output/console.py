@@ -13,6 +13,7 @@ from __future__ import annotations
 from typing import Optional, TYPE_CHECKING
 if TYPE_CHECKING:
     from airsentry.analysis.models import ScoredWindow
+    from airsentry.analysis.session import SessionSummary
 
 from rich.console import Console
 from rich.style import Style
@@ -315,6 +316,63 @@ def _print_verbose_detail(event: FrameEvent) -> None:
 
     for key, value in details:
         console.print(f"   [dim]{key + ':':<20}[/dim] {value}")
+    console.print()
+
+
+def print_session_summary(summary: "SessionSummary") -> None:
+    """
+    Print a rich wireless session summary dashboard.
+
+    Displays session-wide accumulated statistics — unique devices, SSID/BSSID
+    counts, frame breakdowns, alert count, and the final anomaly score.
+    Called once at the end of a monitoring or replay session.
+    """
+    from rich.panel import Panel
+    from rich.columns import Columns
+    from rich.table import Table
+    from rich import box
+    from airsentry.analysis.session import SessionSummary  # noqa: F401 (type hint)
+
+    console.rule("[bold cyan]Wireless Session Summary[/bold cyan]", style="cyan")
+
+    left = Table(box=None, show_header=False, padding=(0, 2))
+    left.add_column(style="dim", no_wrap=True)
+    left.add_column(style="bold white", no_wrap=True)
+    left.add_row("Devices detected",        str(summary.devices_detected))
+    left.add_row("Unique SSIDs",            str(summary.unique_ssids))
+    left.add_row("Unique BSSIDs",           str(summary.unique_bssids))
+
+    right = Table(box=None, show_header=False, padding=(0, 2))
+    right.add_column(style="dim", no_wrap=True)
+    right.add_column(style="bold white", no_wrap=True)
+    right.add_row("Beacon frames",          str(summary.n_beacons))
+    right.add_row("Probe requests",         str(summary.n_probe_requests))
+    right.add_row("Deauth / Disassoc",      str(summary.n_deauths))
+    right.add_row("Total frames parsed",    str(summary.n_total_frames))
+
+    console.print(Columns([left, right], padding=(0, 4)))
+    console.print()
+
+    meta = Table(box=None, show_header=False, padding=(0, 2))
+    meta.add_column(style="dim", no_wrap=True)
+    meta.add_column(style="bold white", no_wrap=True)
+    meta.add_row("Alerts raised",           str(summary.alerts_raised))
+    meta.add_row("Analysis windows",        str(summary.windows_analyzed))
+
+    if summary.last_anomaly_score is not None:
+        score = summary.last_anomaly_score
+        score_color = "red" if score > 0.6 else "yellow" if score > 0.4 else "green"
+        model_label = "IsolationForest" if summary.is_model_fitted else "heuristic"
+        meta.add_row(
+            "Last anomaly score",
+            f"[bold {score_color}]{score:.2f}[/bold {score_color}]  [dim]({model_label})[/dim]",
+        )
+
+    mins, secs = divmod(int(summary.duration_seconds), 60)
+    duration_str = f"{mins}m {secs}s" if mins else f"{secs}s"
+    meta.add_row("Session duration",        duration_str)
+
+    console.print(meta)
     console.print()
 
 
