@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 from typing import Optional
 
@@ -14,6 +15,18 @@ from PySide6.QtWidgets import (
 
 from airsentry.ui.style import ACCENT, TEXT_DIM, TEXT_PRIMARY
 from airsentry.ui.views._event_feed import EventFeedWidget
+
+
+def _find_demo_pcap() -> Optional[Path]:
+    """Look for examples/sample_capture.pcap relative to common locations."""
+    candidates = [
+        Path("examples/sample_capture.pcap"),
+        Path(__file__).parents[4] / "examples" / "sample_capture.pcap",
+    ]
+    for p in candidates:
+        if p.exists():
+            return p.resolve()
+    return None
 
 
 class ReplayView(QWidget):
@@ -93,6 +106,34 @@ class ReplayView(QWidget):
         title_row.addStretch()
         title_row.addWidget(self._status_label)
         root.addLayout(title_row)
+
+        # ── Quick start notice (shown when demo PCAP is available) ────
+        demo_path = _find_demo_pcap()
+        if demo_path:
+            demo_banner = QFrame()
+            demo_banner.setStyleSheet(
+                "QFrame { background-color: #081a20; border: 1px solid #0a3040; border-radius: 6px; }"
+            )
+            demo_lay = QHBoxLayout(demo_banner)
+            demo_lay.setContentsMargins(14, 10, 14, 10)
+            demo_lay.setSpacing(10)
+            demo_icon = QLabel("💡")
+            demo_icon.setStyleSheet("font-size: 15px; border: none; background: transparent;")
+            demo_txt = QLabel(
+                "<b style='color:#38bdf8'>Demo PCAP found.</b>"
+                "<span style='color:#5a8a9a; font-size:12px;'>"
+                "  Load it to see live frame parsing, threat detection, and anomaly scoring.</span>"
+            )
+            demo_txt.setStyleSheet("border: none; background: transparent;")
+            demo_btn = QPushButton("Load Demo PCAP")
+            demo_btn.setObjectName("start_btn")
+            demo_btn.setFixedWidth(140)
+            demo_btn.setCursor(Qt.PointingHandCursor)
+            demo_btn.clicked.connect(lambda: self._load_file(demo_path))
+            demo_lay.addWidget(demo_icon, 0, Qt.AlignVCenter)
+            demo_lay.addWidget(demo_txt, 1)
+            demo_lay.addWidget(demo_btn, 0, Qt.AlignVCenter)
+            root.addWidget(demo_banner)
 
         # ── File picker ──────────────────────────────────────────────
         ctrl_frame = QFrame()
@@ -208,12 +249,15 @@ class ReplayView(QWidget):
             "PCAP files (*.pcap *.pcapng *.cap);;All files (*)",
         )
         if path:
-            self._selected_path = Path(path)
-            self._file_edit.setText(str(self._selected_path))
-            self._file_edit.setStyleSheet(
-                f"color: {TEXT_PRIMARY}; font-size: 12px; font-style: normal;"
-            )
-            self._start_btn.setEnabled(True)
+            self._load_file(Path(path))
+
+    def _load_file(self, path: Path) -> None:
+        self._selected_path = path
+        self._file_edit.setText(str(path))
+        self._file_edit.setStyleSheet(
+            f"color: {TEXT_PRIMARY}; font-size: 12px; font-style: normal;"
+        )
+        self._start_btn.setEnabled(True)
 
     def _on_rate_changed(self, value: int) -> None:
         if value == 0:

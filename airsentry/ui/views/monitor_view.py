@@ -4,13 +4,13 @@ from __future__ import annotations
 
 from typing import Optional
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import (
-    QComboBox, QFrame, QGroupBox, QHBoxLayout,
+    QComboBox, QFrame, QHBoxLayout,
     QLabel, QPushButton, QSizePolicy, QVBoxLayout, QWidget,
 )
 
-from airsentry.ui.style import ACCENT, BG_SURFACE, BORDER, TEXT_DIM, TEXT_PRIMARY
+from airsentry.ui.style import ACCENT, TEXT_DIM, TEXT_PRIMARY
 from airsentry.ui.views._event_feed import EventFeedWidget
 
 
@@ -39,8 +39,15 @@ class MonitorView(QWidget):
     the anomaly scorer produces a new ScoredWindow.
     """
 
+    # Warn the user if no events arrive within this many milliseconds.
+    _NO_PACKET_WARN_MS = 8_000
+
     def __init__(self, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
+        self._events_received = 0
+        self._no_packet_timer = QTimer(self)
+        self._no_packet_timer.setSingleShot(True)
+        self._no_packet_timer.timeout.connect(self._on_no_packets_timeout)
         self._build_ui()
 
     # ------------------------------------------------------------------
@@ -49,6 +56,7 @@ class MonitorView(QWidget):
 
     def on_session_started(self) -> None:
         """Called when a new monitoring session begins."""
+        self._events_received = 0
         self.event_feed.clear_feed()
         self._update_stats_bar(None)
         self._start_btn.setEnabled(False)
@@ -56,10 +64,12 @@ class MonitorView(QWidget):
         self._iface_combo.setEnabled(False)
         self._chan_combo.setEnabled(False)
         self._status_label.setText("● MONITORING")
-        self._status_label.setStyleSheet(f"color: #4dffb4; font-weight: 600;")
+        self._status_label.setStyleSheet("color: #4dffb4; font-weight: 600;")
+        self._no_packet_timer.start(self._NO_PACKET_WARN_MS)
 
     def on_session_stopped(self) -> None:
         """Called when a session ends or is stopped."""
+        self._no_packet_timer.stop()
         self._start_btn.setEnabled(True)
         self._stop_btn.setEnabled(False)
         self._iface_combo.setEnabled(True)
@@ -67,9 +77,50 @@ class MonitorView(QWidget):
         self._status_label.setText("● IDLE")
         self._status_label.setStyleSheet(f"color: {TEXT_DIM}; font-weight: 600;")
 
+    def on_event_received(self) -> None:
+        """Call once for each parsed event to reset the no-packet timer."""
+        self._events_received += 1
+        if self._events_received == 1:
+            self._no_packet_timer.stop()
+
     def update_window_stats(self, window) -> None:
         """Refresh the stats bar from a ScoredWindow."""
         self._update_stats_bar(window)
+
+    def _on_no_packets_timeout(self) -> None:
+        """Insert a warning into the feed when no frames arrive quickly enough."""
+        if self._events_received > 0:
+            return
+        iface = self._iface_combo.currentText()
+        warning_html = (
+            f'<span style="color:#ff9f43;font-weight:600;">'
+            f'⚠  No 802.11 management frames received on <b>{iface}</b>.</span>'
+            f'<br>'
+            f'<span style="color:#6b7a99;">'
+            f'Live monitoring requires:</span>'
+            f'<br>'
+            f'<span style="color:#6b7a99;">'
+            f'&nbsp;&nbsp;① The interface must be in <b style="color:#dde3f0">monitor mode</b> '
+            f'(e.g. <code>sudo airmon-ng start {iface}</code>)</span>'
+            f'<br>'
+            f'<span style="color:#6b7a99;">'
+            f'&nbsp;&nbsp;② AirSentry must run with <b style="color:#dde3f0">root / sudo</b> '
+            f'for raw packet capture</span>'
+            f'<br>'
+            f'<span style="color:#6b7a99;">'
+            f'&nbsp;&nbsp;③ On macOS, try a dedicated Wi-Fi adapter in monitor mode</span>'
+            f'<br><br>'
+            f'<span style="color:#38bdf8;">'
+            f'💡  Use the <b>Replay</b> view to load a PCAP file and see the full pipeline.</span>'
+        )
+        # Inject directly (not via the batched add_event path)
+        from PySide6.QtGui import QTextCursor
+        cursor = QTextCursor(self.event_feed.document())
+        cursor.movePosition(QTextCursor.MoveOperation.End)
+        cursor.insertHtml(warning_html)
+        cursor.insertBlock()
+        sb = self.event_feed.verticalScrollBar()
+        sb.setValue(sb.maximum())
 
     @property
     def selected_interface(self) -> str:
@@ -93,12 +144,35 @@ class MonitorView(QWidget):
         title_row = QHBoxLayout()
         title = QLabel("Live Monitor")
         title.setObjectName("view_title")
+
         self._status_label = QLabel("● IDLE")
         self._status_label.setStyleSheet(f"color: {TEXT_DIM}; font-weight: 600;")
         title_row.addWidget(title)
         title_row.addStretch()
         title_row.addWidget(self._status_label)
         root.addLayout(title_row)
+
+        # ── Requirements notice ────────────────────────────────────────
+        notice = QFrame()
+        notice.setStyleSheet(
+            "QFrame { background-color: #1a1a08; border: 1px solid #3a3a00; border-radius: 6px; }"
+        )
+        notice_lay = QHBoxLayout(notice)
+        notice_lay.setContentsMargins(14, 10, 14, 10)
+        notice_lay.setSpacing(10)
+        icon = QLabel("⚡")
+        icon.setStyleSheet("font-size: 16px; border: none; background: transparent;")
+        notice_txt = QLabel(
+            "<b style='color:#ffd93d'>Live monitoring requires a monitor-mode interface + root/sudo.</b>"
+            "<br><span style='color:#8a8060; font-size:12px;'>"
+            "No hardware? Use <b style='color:#38bdf8'>Replay</b> to load a PCAP file "
+            "and see the full detection pipeline in action.</span>"
+        )
+        notice_txt.setStyleSheet("border: none; background: transparent;")
+        notice_txt.setWordWrap(True)
+        notice_lay.addWidget(icon, 0, Qt.AlignTop)
+        notice_lay.addWidget(notice_txt, 1)
+        root.addWidget(notice)
 
         # ── Controls ─────────────────────────────────────────────────
         ctrl_frame = QFrame()

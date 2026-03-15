@@ -257,14 +257,11 @@ class MainWindow(QMainWindow):
 
         # Event feed — route to the active view's feed
         if is_monitor:
-            worker.event_parsed.connect(
-                lambda ev: self._monitor_view.event_feed.add_event(ev)
-            )
+            worker.event_parsed.connect(self._monitor_view.event_feed.add_event)
+            worker.event_parsed.connect(lambda _ev: self._monitor_view.on_event_received())
             worker.window_scored.connect(self._monitor_view.update_window_stats)
         else:
-            worker.event_parsed.connect(
-                lambda ev: self._replay_view.event_feed.add_event(ev)
-            )
+            worker.event_parsed.connect(self._replay_view.event_feed.add_event)
             worker.window_scored.connect(self._replay_view.update_window_stats)
             worker.progress_updated.connect(self._replay_view.update_progress)
 
