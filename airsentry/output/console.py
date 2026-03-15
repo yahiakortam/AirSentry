@@ -423,3 +423,18 @@ def print_window_stats(window: "ScoredWindow") -> None:
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
+
+
+def _signal_badge(dbm: int) -> str:
+    """Return a compact signal strength label (e.g. '-72 dBm')."""
+    return f"{dbm} dBm"
+
+
+def _signal_style(dbm: int) -> str:
+    """Return a Rich style string based on signal strength."""
+    if dbm >= -60:
+        return "bold green"
+    elif dbm >= -75:
+        return "yellow"
+    else:
+        return "dim red"
