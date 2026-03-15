@@ -1,0 +1,48 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "airsentry"
+version = "0.1.0"
+description = "A passive Wi-Fi security monitoring and research platform"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+authors = [{ name = "AirSentry Contributors" }]
+keywords = ["wifi", "security", "monitoring", "802.11", "packet-capture", "wireless"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Information Technology",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Security",
+    "Topic :: System :: Networking :: Monitoring",
+]
+dependencies = [
+    "scapy>=2.5.0",
+    "typer>=0.12.0",
+    "rich>=13.0.0",
+    "tomli>=2.0.0; python_version < '3.11'",
+]
+
+[project.scripts]
+airsentry = "airsentry.cli.main:app"
+
+[project.urls]
+Repository = "https://github.com/yahiakortam/AirSentry"
+"Bug Tracker" = "https://github.com/yahiakortam/AirSentry/issues"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["airsentry*"]
+
+[tool.setuptools.package-data]
+airsentry = ["py.typed"]
