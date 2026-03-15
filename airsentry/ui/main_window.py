@@ -4,16 +4,18 @@ from __future__ import annotations
 
 from typing import Optional
 
-from PySide6.QtCore import Qt, QSize
+from PySide6.QtCore import Qt
 from PySide6.QtGui import QCloseEvent
 from PySide6.QtWidgets import (
     QFrame, QHBoxLayout, QLabel, QMainWindow,
-    QMessageBox, QPushButton, QSizePolicy,
+    QMessageBox, QPushButton,
     QStackedWidget, QVBoxLayout, QWidget,
 )
 
 from airsentry import __version__
-from airsentry.ui.style import ACCENT, BG_DEEP, TEXT_DIM, TEXT_PRIMARY
+from airsentry.ui.style import (
+    ACCENT, BG_DEEP, TEXT_MUTED, TEXT_PRIMARY, TEXT_SECONDARY,
+)
 from airsentry.ui.views.alerts_panel import AlertsPanel
 from airsentry.ui.views.monitor_view import MonitorView
 from airsentry.ui.views.replay_view import ReplayView
@@ -23,10 +25,6 @@ from airsentry.ui.views.visualize_view import VisualizeView
 from airsentry.ui.worker import MonitorWorker, ReplayWorker
 
 
-# ---------------------------------------------------------------------------
-# Navigation index constants
-# ---------------------------------------------------------------------------
-
 IDX_MONITOR   = 0
 IDX_REPLAY    = 1
 IDX_SUMMARY   = 2
@@ -34,30 +32,13 @@ IDX_VISUALIZE = 3
 IDX_SETTINGS  = 4
 
 
-# ---------------------------------------------------------------------------
-# MainWindow
-# ---------------------------------------------------------------------------
-
-
 class MainWindow(QMainWindow):
-    """
-    Top-level application window.
-
-    Layout
-    ------
-    ┌──────────────────────────────────────────────────────────┐
-    │  Header bar (brand + status)                             │
-    ├───────────┬──────────────────────────────┬───────────────┤
-    │  Sidebar  │   QStackedWidget (views)     │  AlertsPanel  │
-    │  (180px)  │   (flexible)                 │  (270px)      │
-    └───────────┴──────────────────────────────┴───────────────┘
-    """
 
     def __init__(self) -> None:
         super().__init__()
-        self.setWindowTitle(f"AirSentry  {__version__}")
+        self.setWindowTitle(f"AirSentry {__version__}")
         self.setMinimumSize(1200, 720)
-        self.resize(1360, 820)
+        self.resize(1400, 840)
 
         self._worker: Optional[MonitorWorker | ReplayWorker] = None
 
@@ -77,10 +58,6 @@ class MainWindow(QMainWindow):
 
         main_lay.addWidget(self._build_header())
 
-        sep = QFrame()
-        sep.setFrameShape(QFrame.HLine)
-        main_lay.addWidget(sep)
-
         body = QHBoxLayout()
         body.setContentsMargins(0, 0, 0, 0)
         body.setSpacing(0)
@@ -94,24 +71,33 @@ class MainWindow(QMainWindow):
     def _build_header(self) -> QWidget:
         bar = QWidget()
         bar.setObjectName("header_bar")
-        bar.setFixedHeight(52)
+        bar.setFixedHeight(48)
         lay = QHBoxLayout(bar)
-        lay.setContentsMargins(20, 0, 20, 0)
-        lay.setSpacing(12)
+        lay.setContentsMargins(22, 0, 22, 0)
+        lay.setSpacing(10)
 
         brand = QLabel("AirSentry")
         brand.setObjectName("brand_label")
 
         ver = QLabel(f"v{__version__}")
         ver.setObjectName("brand_version")
-        ver.setStyleSheet(f"color: {TEXT_DIM}; font-size: 12px; padding-top: 4px;")
 
         lay.addWidget(brand)
         lay.addWidget(ver)
         lay.addStretch()
 
-        self._status_badge = QLabel("● IDLE")
-        self._status_badge.setStyleSheet(f"color: {TEXT_DIM}; font-weight: 600; font-size: 13px;")
+        self._status_badge = QLabel("IDLE")
+        self._status_badge.setStyleSheet(
+            f"color: {TEXT_MUTED}; font-size: 12px; font-weight: 600; "
+            f"letter-spacing: 1px;"
+        )
+        self._status_dot = QLabel()
+        self._status_dot.setFixedSize(8, 8)
+        self._status_dot.setStyleSheet(
+            f"background-color: {TEXT_MUTED}; border-radius: 4px;"
+        )
+
+        lay.addWidget(self._status_dot)
         lay.addWidget(self._status_badge)
 
         return bar
@@ -119,26 +105,26 @@ class MainWindow(QMainWindow):
     def _build_sidebar(self) -> QWidget:
         sidebar = QWidget()
         sidebar.setObjectName("sidebar")
-        sidebar.setFixedWidth(180)
+        sidebar.setFixedWidth(190)
 
         lay = QVBoxLayout(sidebar)
-        lay.setContentsMargins(0, 16, 0, 16)
-        lay.setSpacing(2)
+        lay.setContentsMargins(0, 20, 0, 16)
+        lay.setSpacing(0)
 
         nav_items = [
-            ("Monitor",   "📡", IDX_MONITOR),
-            ("Replay",    "▶",  IDX_REPLAY),
-            ("Summary",   "📊", IDX_SUMMARY),
-            ("Visualize", "📈", IDX_VISUALIZE),
-            ("Settings",  "⚙",  IDX_SETTINGS),
+            ("Monitor",   IDX_MONITOR),
+            ("Replay",    IDX_REPLAY),
+            ("Summary",   IDX_SUMMARY),
+            ("Visualize", IDX_VISUALIZE),
+            ("Settings",  IDX_SETTINGS),
         ]
 
         self._nav_buttons: list[QPushButton] = []
 
-        for label, icon, idx in nav_items:
-            btn = QPushButton(f"  {icon}  {label}")
+        for label, idx in nav_items:
+            btn = QPushButton(f"   {label}")
             btn.setObjectName("nav_btn")
-            btn.setFixedHeight(44)
+            btn.setFixedHeight(42)
             btn.setProperty("active", "false")
             btn.setCursor(Qt.PointingHandCursor)
             btn.clicked.connect(lambda checked=False, i=idx: self._switch_view(i))
@@ -147,11 +133,9 @@ class MainWindow(QMainWindow):
 
         lay.addStretch()
 
-        # Version tag at bottom
         ver_lbl = QLabel(f"v{__version__}")
         ver_lbl.setObjectName("brand_version")
         ver_lbl.setAlignment(Qt.AlignCenter)
-        ver_lbl.setStyleSheet(f"color: {TEXT_DIM}; font-size: 11px; padding: 4px 0;")
         lay.addWidget(ver_lbl)
 
         return sidebar
@@ -159,17 +143,17 @@ class MainWindow(QMainWindow):
     def _build_content_stack(self) -> QStackedWidget:
         self._stack = QStackedWidget()
 
-        self._monitor_view  = MonitorView()
-        self._replay_view   = ReplayView()
-        self._summary_view  = SummaryView()
+        self._monitor_view   = MonitorView()
+        self._replay_view    = ReplayView()
+        self._summary_view   = SummaryView()
         self._visualize_view = VisualizeView()
-        self._settings_view = SettingsView()
+        self._settings_view  = SettingsView()
 
-        self._stack.addWidget(self._monitor_view)   # IDX_MONITOR
-        self._stack.addWidget(self._replay_view)    # IDX_REPLAY
-        self._stack.addWidget(self._summary_view)   # IDX_SUMMARY
-        self._stack.addWidget(self._visualize_view) # IDX_VISUALIZE
-        self._stack.addWidget(self._settings_view)  # IDX_SETTINGS
+        self._stack.addWidget(self._monitor_view)
+        self._stack.addWidget(self._replay_view)
+        self._stack.addWidget(self._summary_view)
+        self._stack.addWidget(self._visualize_view)
+        self._stack.addWidget(self._settings_view)
 
         return self._stack
 
@@ -184,7 +168,6 @@ class MainWindow(QMainWindow):
     def _connect_view_buttons(self) -> None:
         self._switch_view(IDX_MONITOR)
 
-        # Wire start/stop buttons from monitor and replay views
         self._monitor_view._start_btn.clicked.connect(self._start_monitoring)
         self._monitor_view._stop_btn.clicked.connect(self._stop_session)
 
@@ -208,12 +191,12 @@ class MainWindow(QMainWindow):
 
         interface = self._monitor_view.selected_interface
         if not interface:
-            QMessageBox.warning(self, "No Interface", "Please select a network interface.")
+            QMessageBox.warning(self, "No Interface", "Select a network interface first.")
             return
 
         self._alerts_panel.reset()
         self._monitor_view.on_session_started()
-        self._set_status("● MONITORING", "#4dffb4")
+        self._set_status("MONITORING", "#4ade80")
 
         from airsentry.config.settings import load_settings
         settings = load_settings()
@@ -228,12 +211,12 @@ class MainWindow(QMainWindow):
 
         file_path = self._replay_view.selected_file
         if not file_path:
-            QMessageBox.warning(self, "No File", "Please select a PCAP file to replay.")
+            QMessageBox.warning(self, "No File", "Select a PCAP file first.")
             return
 
         self._alerts_panel.reset()
         self._replay_view.on_session_started()
-        self._set_status("● REPLAYING", ACCENT)
+        self._set_status("REPLAYING", ACCENT)
 
         from airsentry.config.settings import load_settings
         settings = load_settings()
@@ -249,13 +232,11 @@ class MainWindow(QMainWindow):
     def _stop_session(self) -> None:
         if self._worker and self._worker.isRunning():
             self._worker.stop()
-        self._set_status("● IDLE", TEXT_DIM)
+        self._set_status("IDLE", TEXT_MUTED)
 
     def _connect_worker(self, worker: MonitorWorker | ReplayWorker) -> None:
-        """Wire all worker signals to the appropriate UI slots."""
         is_monitor = isinstance(worker, MonitorWorker)
 
-        # Event feed — route to the active view's feed
         if is_monitor:
             worker.event_parsed.connect(self._monitor_view.event_feed.add_event)
             worker.event_parsed.connect(lambda _ev: self._monitor_view.on_event_received())
@@ -265,10 +246,8 @@ class MainWindow(QMainWindow):
             worker.window_scored.connect(self._replay_view.update_window_stats)
             worker.progress_updated.connect(self._replay_view.update_progress)
 
-        # Alerts — always goes to the side panel regardless of active view
         worker.alert_raised.connect(self._alerts_panel.add_alert)
 
-        # Quick stats on alerts panel
         worker.window_scored.connect(
             lambda w: self._alerts_panel.update_quick_stats(
                 devices=w.unique_src_macs,
@@ -276,25 +255,22 @@ class MainWindow(QMainWindow):
             )
         )
 
-        # Session finished
         worker.finished.connect(self._on_session_finished)
         worker.error.connect(self._on_worker_error)
 
     def _on_session_finished(self, summary) -> None:
-        """Called when a worker emits its finished signal."""
-        self._set_status("● IDLE", TEXT_DIM)
+        self._set_status("IDLE", TEXT_MUTED)
 
         if isinstance(self._worker, MonitorWorker):
             self._monitor_view.on_session_stopped()
         else:
             self._replay_view.on_session_stopped()
 
-        # Populate and switch to the summary view
         self._summary_view.populate(summary)
         self._switch_view(IDX_SUMMARY)
 
     def _on_worker_error(self, message: str) -> None:
-        self._set_status("● ERROR", "#ff5f57")
+        self._set_status("ERROR", "#f87171")
         if isinstance(self._worker, MonitorWorker):
             self._monitor_view.on_session_stopped()
         elif isinstance(self._worker, ReplayWorker):
@@ -308,7 +284,11 @@ class MainWindow(QMainWindow):
     def _set_status(self, text: str, color: str) -> None:
         self._status_badge.setText(text)
         self._status_badge.setStyleSheet(
-            f"color: {color}; font-weight: 600; font-size: 13px;"
+            f"color: {color}; font-size: 12px; font-weight: 600; "
+            f"letter-spacing: 1px;"
+        )
+        self._status_dot.setStyleSheet(
+            f"background-color: {color}; border-radius: 4px;"
         )
 
     # ------------------------------------------------------------------

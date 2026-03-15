@@ -2,43 +2,46 @@
 
 from __future__ import annotations
 
-from PySide6.QtGui import QColor, QPalette
+from PySide6.QtGui import QColor, QFont, QPalette
 from PySide6.QtWidgets import QApplication
 
 
 # ---------------------------------------------------------------------------
-# Color palette constants (used by both QSS and code that paints directly)
+# Color palette
 # ---------------------------------------------------------------------------
 
-BG_DEEP    = "#0b0b16"   # deepest background (sidebar, event feed)
-BG_PANEL   = "#10111f"   # card / panel background
-BG_SURFACE = "#161728"   # slightly lighter surface
-BORDER     = "#1e2340"   # subtle border
+BG_DEEP    = "#0a0e17"
+BG_PANEL   = "#0f1320"
+BG_SURFACE = "#171c2e"
+BG_HOVER   = "#1c2238"
+BORDER     = "#232a42"
+BORDER_LT  = "#2c3555"
 
-ACCENT     = "#38bdf8"   # primary accent (sky blue — matches CLI cyan)
-ACCENT_DIM = "#1e4a6a"
+ACCENT     = "#38bdf8"
+ACCENT_DIM = "#1a3f5c"
+ACCENT_BG  = "#0d1e30"
 
-TEXT_PRIMARY = "#dde3f0"
-TEXT_DIM     = "#6b7a99"
-TEXT_MUTED   = "#454e6a"
+TEXT_PRIMARY   = "#e2e8f0"
+TEXT_SECONDARY = "#94a3b8"
+TEXT_MUTED     = "#475569"
 
-# Frame-type colours (must match CLI for visual continuity)
-COLOR_BEACON  = "#4a9eff"
-COLOR_PROBE_Q = "#50d890"
-COLOR_PROBE_R = "#47d4d4"
-COLOR_DEAUTH  = "#ff5f57"
-COLOR_DISASSOC = "#ff9f43"
+COLOR_BEACON   = "#60a5fa"
+COLOR_PROBE_Q  = "#34d399"
+COLOR_PROBE_R  = "#2dd4bf"
+COLOR_DEAUTH   = "#f87171"
+COLOR_DISASSOC = "#fb923c"
 
-# Alert severity colours
-COLOR_LOW      = "#ffd93d"
-COLOR_MEDIUM   = "#ff9f43"
-COLOR_HIGH     = "#ff5f57"
-COLOR_CRITICAL = "#ff3377"
+COLOR_LOW      = "#facc15"
+COLOR_MEDIUM   = "#fb923c"
+COLOR_HIGH     = "#f87171"
+COLOR_CRITICAL = "#f43f5e"
 
-# Status colours
-COLOR_OK      = "#4dffb4"
-COLOR_WARN    = "#ffd93d"
-COLOR_DANGER  = "#ff5f57"
+COLOR_OK     = "#4ade80"
+COLOR_WARN   = "#facc15"
+COLOR_DANGER = "#f87171"
+
+FONT_FAMILY = '"Helvetica Neue", Helvetica, Arial, sans-serif'
+FONT_MONO   = 'Menlo, "Cascadia Code", Consolas, monospace'
 
 
 # ---------------------------------------------------------------------------
@@ -50,7 +53,7 @@ QSS = f"""
 QMainWindow, QDialog, QWidget {{
     background-color: {BG_PANEL};
     color: {TEXT_PRIMARY};
-    font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+    font-family: {FONT_FAMILY};
     font-size: 13px;
 }}
 
@@ -61,23 +64,24 @@ QWidget#sidebar {{
 }}
 QLabel#brand_label {{
     color: {ACCENT};
-    font-size: 16px;
+    font-size: 15px;
     font-weight: 700;
-    padding: 4px 0;
+    letter-spacing: 0.5px;
 }}
 QLabel#brand_version {{
     color: {TEXT_MUTED};
-    font-size: 11px;
+    font-size: 10px;
 }}
 QPushButton#nav_btn {{
     background-color: transparent;
-    color: {TEXT_DIM};
+    color: {TEXT_SECONDARY};
     text-align: left;
     border: none;
     border-left: 3px solid transparent;
     border-radius: 0;
-    padding: 11px 18px;
+    padding: 10px 20px;
     font-size: 13px;
+    font-weight: 500;
 }}
 QPushButton#nav_btn:hover {{
     background-color: {BG_SURFACE};
@@ -102,22 +106,23 @@ QWidget#alerts_panel {{
     border-left: 1px solid {BORDER};
 }}
 QLabel#alerts_title {{
-    color: {TEXT_DIM};
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 1px;
+    color: {TEXT_MUTED};
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
 }}
 
 /* ── Section titles ──────────────────────────────────────────────── */
 QLabel#section_title {{
-    color: {TEXT_DIM};
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 1px;
+    color: {TEXT_MUTED};
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1.2px;
 }}
 QLabel#view_title {{
     color: {TEXT_PRIMARY};
-    font-size: 17px;
+    font-size: 18px;
     font-weight: 700;
 }}
 
@@ -125,16 +130,17 @@ QLabel#view_title {{
 QFrame#stat_card {{
     background-color: {BG_SURFACE};
     border: 1px solid {BORDER};
-    border-radius: 8px;
+    border-radius: 10px;
 }}
 QLabel#stat_value {{
     color: {TEXT_PRIMARY};
-    font-size: 26px;
+    font-size: 28px;
     font-weight: 700;
 }}
 QLabel#stat_label {{
-    color: {TEXT_DIM};
+    color: {TEXT_SECONDARY};
     font-size: 11px;
+    font-weight: 500;
 }}
 
 /* ── Alert cards ─────────────────────────────────────────────────── */
@@ -142,73 +148,70 @@ QFrame#alert_card {{
     background-color: {BG_SURFACE};
     border: 1px solid {BORDER};
     border-left: 3px solid {COLOR_HIGH};
-    border-radius: 4px;
+    border-radius: 6px;
 }}
-QFrame#alert_card_low    {{ border-left-color: {COLOR_LOW}; }}
-QFrame#alert_card_medium {{ border-left-color: {COLOR_MEDIUM}; }}
-QFrame#alert_card_high   {{ border-left-color: {COLOR_HIGH}; }}
-QFrame#alert_card_critical {{ border-left-color: {COLOR_CRITICAL}; }}
 
 /* ── Buttons ─────────────────────────────────────────────────────── */
 QPushButton {{
     background-color: {BG_SURFACE};
     color: {TEXT_PRIMARY};
     border: 1px solid {BORDER};
-    border-radius: 5px;
-    padding: 6px 16px;
+    border-radius: 6px;
+    padding: 7px 18px;
     font-size: 13px;
+    font-weight: 500;
 }}
 QPushButton:hover {{
-    background-color: #1a2038;
-    border-color: {ACCENT_DIM};
-    color: #ffffff;
+    background-color: {BG_HOVER};
+    border-color: {BORDER_LT};
 }}
 QPushButton:pressed {{
-    background-color: #101525;
+    background-color: {BG_PANEL};
 }}
 QPushButton:disabled {{
     background-color: {BG_PANEL};
     color: {TEXT_MUTED};
-    border-color: {TEXT_MUTED};
+    border-color: {BORDER};
 }}
 QPushButton#start_btn {{
-    background-color: #0d4d32;
+    background-color: #0c3d2a;
     color: {COLOR_OK};
-    border: 1px solid #0f6642;
+    border: 1px solid #145c3e;
     font-weight: 600;
 }}
 QPushButton#start_btn:hover {{
-    background-color: #0f6642;
+    background-color: #145c3e;
     color: #ffffff;
 }}
 QPushButton#start_btn:disabled {{
-    background-color: #0a2e1e;
-    color: #2a5040;
-    border-color: #0a2e1e;
+    background-color: #081f16;
+    color: #1e4030;
+    border-color: #0e2e20;
 }}
 QPushButton#stop_btn {{
-    background-color: #4d1515;
+    background-color: #3d1515;
     color: {COLOR_DANGER};
-    border: 1px solid #6a1f1f;
+    border: 1px solid #5c2020;
     font-weight: 600;
 }}
 QPushButton#stop_btn:hover {{
-    background-color: #6a1f1f;
+    background-color: #5c2020;
     color: #ffffff;
 }}
 QPushButton#stop_btn:disabled {{
     background-color: #1a0a0a;
-    color: #3a1515;
+    color: #301515;
     border-color: #1a0a0a;
 }}
 QPushButton#icon_btn {{
     background-color: transparent;
     border: none;
-    color: {TEXT_DIM};
-    padding: 4px;
+    color: {TEXT_MUTED};
+    padding: 4px 8px;
+    font-size: 12px;
 }}
 QPushButton#icon_btn:hover {{
-    color: {TEXT_PRIMARY};
+    color: {TEXT_SECONDARY};
 }}
 
 /* ── Text / event feed ───────────────────────────────────────────── */
@@ -216,9 +219,10 @@ QTextEdit, QPlainTextEdit {{
     background-color: {BG_DEEP};
     color: {TEXT_PRIMARY};
     border: 1px solid {BORDER};
-    border-radius: 4px;
-    font-family: "SF Mono", "Cascadia Code", Consolas, "Courier New", monospace;
+    border-radius: 8px;
+    font-family: {FONT_MONO};
     font-size: 12px;
+    padding: 6px;
     selection-background-color: {ACCENT_DIM};
 }}
 
@@ -227,11 +231,12 @@ QComboBox {{
     background-color: {BG_SURFACE};
     color: {TEXT_PRIMARY};
     border: 1px solid {BORDER};
-    border-radius: 5px;
-    padding: 5px 10px;
-    min-height: 26px;
+    border-radius: 6px;
+    padding: 6px 12px;
+    min-height: 28px;
+    font-size: 13px;
 }}
-QComboBox:hover {{ border-color: {ACCENT_DIM}; }}
+QComboBox:hover {{ border-color: {BORDER_LT}; }}
 QComboBox::drop-down {{ border: none; width: 24px; }}
 QComboBox::down-arrow {{ image: none; width: 0; }}
 QComboBox QAbstractItemView {{
@@ -247,29 +252,24 @@ QLineEdit {{
     background-color: {BG_DEEP};
     color: {TEXT_PRIMARY};
     border: 1px solid {BORDER};
-    border-radius: 5px;
-    padding: 5px 10px;
-    min-height: 26px;
+    border-radius: 6px;
+    padding: 6px 12px;
+    min-height: 28px;
 }}
 QLineEdit:focus {{ border-color: {ACCENT}; }}
-QLineEdit:read-only {{
-    color: {TEXT_DIM};
-    background-color: {BG_PANEL};
-}}
 
 /* ── Sliders ─────────────────────────────────────────────────────── */
 QSlider::groove:horizontal {{
-    background-color: {BG_SURFACE};
+    background-color: {BORDER};
     height: 4px;
     border-radius: 2px;
-    border: 1px solid {BORDER};
 }}
 QSlider::handle:horizontal {{
     background-color: {ACCENT};
-    width: 16px;
-    height: 16px;
-    margin: -7px 0;
-    border-radius: 8px;
+    width: 14px;
+    height: 14px;
+    margin: -5px 0;
+    border-radius: 7px;
 }}
 QSlider::sub-page:horizontal {{
     background-color: {ACCENT};
@@ -281,50 +281,49 @@ QSpinBox, QDoubleSpinBox {{
     background-color: {BG_SURFACE};
     color: {TEXT_PRIMARY};
     border: 1px solid {BORDER};
-    border-radius: 5px;
-    padding: 4px 8px;
+    border-radius: 6px;
+    padding: 5px 10px;
+    font-size: 13px;
 }}
 
 /* ── Scroll bars ─────────────────────────────────────────────────── */
 QScrollBar:vertical {{
-    background: {BG_PANEL};
-    width: 7px;
+    background: transparent;
+    width: 6px;
     margin: 0;
 }}
 QScrollBar::handle:vertical {{
-    background: #2a3050;
+    background: {BORDER};
     border-radius: 3px;
-    min-height: 24px;
+    min-height: 30px;
 }}
-QScrollBar::handle:vertical:hover {{ background: #3a4070; }}
+QScrollBar::handle:vertical:hover {{ background: {BORDER_LT}; }}
 QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{ height: 0; }}
 QScrollBar:horizontal {{
-    background: {BG_PANEL};
-    height: 7px;
+    background: transparent;
+    height: 6px;
 }}
 QScrollBar::handle:horizontal {{
-    background: #2a3050;
+    background: {BORDER};
     border-radius: 3px;
-    min-width: 24px;
+    min-width: 30px;
 }}
 QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {{ width: 0; }}
 
 /* ── Tab widgets ─────────────────────────────────────────────────── */
 QTabWidget::pane {{
     border: 1px solid {BORDER};
-    border-radius: 4px;
+    border-radius: 6px;
     background: {BG_PANEL};
 }}
 QTabBar::tab {{
-    background: {BG_SURFACE};
-    color: {TEXT_DIM};
-    padding: 6px 18px;
-    border: 1px solid {BORDER};
-    border-bottom: none;
-    border-radius: 4px 4px 0 0;
+    background: transparent;
+    color: {TEXT_SECONDARY};
+    padding: 8px 20px;
+    border: none;
+    border-bottom: 2px solid transparent;
 }}
 QTabBar::tab:selected {{
-    background: {BG_PANEL};
     color: {ACCENT};
     border-bottom: 2px solid {ACCENT};
 }}
@@ -332,17 +331,17 @@ QTabBar::tab:hover {{ color: {TEXT_PRIMARY}; }}
 
 /* ── Progress bar ────────────────────────────────────────────────── */
 QProgressBar {{
-    background-color: {BG_SURFACE};
-    border: 1px solid {BORDER};
+    background-color: {BORDER};
+    border: none;
     border-radius: 4px;
     text-align: center;
-    color: {TEXT_DIM};
+    color: {TEXT_MUTED};
     font-size: 11px;
-    height: 14px;
+    height: 8px;
 }}
 QProgressBar::chunk {{
     background-color: {ACCENT};
-    border-radius: 3px;
+    border-radius: 4px;
 }}
 
 /* ── Scroll area ─────────────────────────────────────────────────── */
@@ -357,18 +356,20 @@ QScrollArea > QWidget > QWidget {{
 /* ── Separators ──────────────────────────────────────────────────── */
 QFrame[frameShape="4"], QFrame[frameShape="5"] {{
     color: {BORDER};
+    max-height: 1px;
 }}
 
 /* ── Checkboxes ──────────────────────────────────────────────────── */
 QCheckBox {{
     color: {TEXT_PRIMARY};
     spacing: 8px;
+    font-size: 13px;
 }}
 QCheckBox::indicator {{
     width: 16px;
     height: 16px;
-    border: 1px solid {BORDER};
-    border-radius: 3px;
+    border: 1px solid {BORDER_LT};
+    border-radius: 4px;
     background: {BG_SURFACE};
 }}
 QCheckBox::indicator:checked {{
@@ -376,13 +377,42 @@ QCheckBox::indicator:checked {{
     border-color: {ACCENT};
 }}
 
+/* ── Group boxes ─────────────────────────────────────────────────── */
+QGroupBox {{
+    border: 1px solid {BORDER};
+    border-radius: 8px;
+    padding-top: 14px;
+    margin-top: 8px;
+    font-weight: 600;
+    font-size: 12px;
+    color: {TEXT_SECONDARY};
+}}
+QGroupBox::title {{
+    subcontrol-origin: margin;
+    left: 12px;
+    padding: 0 6px;
+}}
+
 /* ── Tool tips ───────────────────────────────────────────────────── */
 QToolTip {{
     background-color: {BG_SURFACE};
     color: {TEXT_PRIMARY};
     border: 1px solid {BORDER};
-    padding: 4px 8px;
-    border-radius: 4px;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+}}
+
+/* ── Notice banners ──────────────────────────────────────────────── */
+QFrame#notice_warn {{
+    background-color: #18170e;
+    border: 1px solid #2e2b10;
+    border-radius: 8px;
+}}
+QFrame#notice_info {{
+    background-color: #0c1820;
+    border: 1px solid #142838;
+    border-radius: 8px;
 }}
 """
 
@@ -392,6 +422,10 @@ def apply_theme(app: QApplication) -> None:
     from PySide6.QtWidgets import QStyleFactory
 
     app.setStyle(QStyleFactory.create("Fusion"))
+
+    font = QFont("Helvetica Neue", 13)
+    font.setStyleStrategy(QFont.StyleStrategy.PreferAntialias)
+    app.setFont(font)
 
     palette = QPalette()
     c = QColor
@@ -410,7 +444,6 @@ def apply_theme(app: QApplication) -> None:
     palette.setColor(QPalette.ColorRole.Highlight,       c(ACCENT_DIM))
     palette.setColor(QPalette.ColorRole.HighlightedText, c("#ffffff"))
 
-    # Disabled state
     palette.setColor(QPalette.ColorGroup.Disabled, QPalette.ColorRole.WindowText, c(TEXT_MUTED))
     palette.setColor(QPalette.ColorGroup.Disabled, QPalette.ColorRole.Text,       c(TEXT_MUTED))
     palette.setColor(QPalette.ColorGroup.Disabled, QPalette.ColorRole.ButtonText, c(TEXT_MUTED))

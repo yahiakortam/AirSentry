@@ -6,16 +6,15 @@ from typing import Optional
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QFrame, QGridLayout, QHBoxLayout, QLabel,
+    QFrame, QGridLayout, QLabel,
     QScrollArea, QSizePolicy, QVBoxLayout, QWidget,
 )
 
 from airsentry.analysis.session import SessionSummary
-from airsentry.ui.style import ACCENT, BG_SURFACE, TEXT_DIM, TEXT_PRIMARY
+from airsentry.ui.style import TEXT_MUTED, TEXT_PRIMARY, TEXT_SECONDARY
 
 
 class StatCard(QFrame):
-    """A single statistic tile: large value + descriptive label."""
 
     def __init__(
         self,
@@ -26,17 +25,19 @@ class StatCard(QFrame):
     ) -> None:
         super().__init__(parent)
         self.setObjectName("stat_card")
-        self.setMinimumHeight(90)
+        self.setMinimumHeight(100)
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
 
         lay = QVBoxLayout(self)
-        lay.setContentsMargins(16, 14, 16, 14)
-        lay.setSpacing(4)
+        lay.setContentsMargins(18, 16, 18, 16)
+        lay.setSpacing(6)
         lay.setAlignment(Qt.AlignCenter)
 
         self._val_label = QLabel(value)
         self._val_label.setObjectName("stat_value")
-        self._val_label.setStyleSheet(f"color: {color}; font-size: 26px; font-weight: 700;")
+        self._val_label.setStyleSheet(
+            f"color: {color}; font-size: 28px; font-weight: 700;"
+        )
         self._val_label.setAlignment(Qt.AlignCenter)
 
         self._key_label = QLabel(label)
@@ -48,27 +49,18 @@ class StatCard(QFrame):
 
     def update(self, value: str, color: str = TEXT_PRIMARY) -> None:  # type: ignore[override]
         self._val_label.setText(value)
-        self._val_label.setStyleSheet(f"color: {color}; font-size: 26px; font-weight: 700;")
+        self._val_label.setStyleSheet(
+            f"color: {color}; font-size: 28px; font-weight: 700;"
+        )
 
 
 class SummaryView(QWidget):
-    """
-    Post-session summary dashboard.
-
-    Populated automatically by ``MainWindow`` when a worker emits its
-    ``finished`` signal.  Shows the ``SessionSummary`` as a grid of stat cards.
-    """
 
     def __init__(self, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
         self._build_ui()
 
-    # ------------------------------------------------------------------
-    # Public API
-    # ------------------------------------------------------------------
-
     def populate(self, summary: SessionSummary) -> None:
-        """Fill all stat cards from a SessionSummary object."""
         self._card_devices.update(str(summary.devices_detected))
         self._card_ssids.update(str(summary.unique_ssids))
         self._card_bssids.update(str(summary.unique_bssids))
@@ -76,23 +68,23 @@ class SummaryView(QWidget):
         self._card_probes.update(f"{summary.n_probe_requests:,}")
         self._card_deauths.update(
             str(summary.n_deauths),
-            color="#ff5f57" if summary.n_deauths > 0 else TEXT_PRIMARY,
+            color="#f87171" if summary.n_deauths > 0 else TEXT_PRIMARY,
         )
         self._card_frames.update(f"{summary.n_total_frames:,}")
         self._card_alerts.update(
             str(summary.alerts_raised),
-            color="#ff5f57" if summary.alerts_raised > 0 else TEXT_PRIMARY,
+            color="#f87171" if summary.alerts_raised > 0 else TEXT_PRIMARY,
         )
         self._card_windows.update(str(summary.windows_analyzed))
 
         if summary.last_anomaly_score is not None:
             s = summary.last_anomaly_score
-            s_color = "#ff5f57" if s > 0.6 else "#ffd93d" if s > 0.4 else "#4dffb4"
+            sc = "#f87171" if s > 0.6 else "#facc15" if s > 0.4 else "#4ade80"
             model_note = "IsolationForest" if summary.is_model_fitted else "Heuristic"
-            self._card_score.update(f"{s:.2f}", color=s_color)
+            self._card_score.update(f"{s:.2f}", color=sc)
             self._model_label.setText(f"Scoring model: {model_note}")
         else:
-            self._card_score.update("—")
+            self._card_score.update("--")
             self._model_label.setText("")
 
         mins, secs = divmod(int(summary.duration_seconds), 60)
@@ -103,33 +95,30 @@ class SummaryView(QWidget):
         self._no_data_label.setVisible(False)
         self._grid_container.setVisible(True)
 
-    # ------------------------------------------------------------------
-    # UI construction
-    # ------------------------------------------------------------------
-
     def _build_ui(self) -> None:
         root = QVBoxLayout(self)
-        root.setContentsMargins(24, 20, 24, 20)
+        root.setContentsMargins(28, 24, 28, 24)
         root.setSpacing(16)
 
-        # ── Title ────────────────────────────────────────────────────
         title = QLabel("Session Summary")
         title.setObjectName("view_title")
         root.addWidget(title)
 
         self._model_label = QLabel("")
-        self._model_label.setStyleSheet(f"color: {TEXT_DIM}; font-size: 12px;")
+        self._model_label.setStyleSheet(
+            f"color: {TEXT_SECONDARY}; font-size: 12px;"
+        )
         root.addWidget(self._model_label)
 
-        # ── No-data placeholder ───────────────────────────────────────
         self._no_data_label = QLabel(
             "Run a monitoring or replay session to see statistics here."
         )
-        self._no_data_label.setStyleSheet(f"color: {TEXT_DIM}; font-size: 13px;")
+        self._no_data_label.setStyleSheet(
+            f"color: {TEXT_MUTED}; font-size: 13px;"
+        )
         self._no_data_label.setAlignment(Qt.AlignCenter)
         root.addWidget(self._no_data_label, 1)
 
-        # ── Stat grid ────────────────────────────────────────────────
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.NoFrame)
@@ -138,44 +127,39 @@ class SummaryView(QWidget):
         self._grid_container.setVisible(False)
         grid = QGridLayout(self._grid_container)
         grid.setContentsMargins(0, 0, 0, 0)
-        grid.setSpacing(10)
+        grid.setSpacing(12)
 
-        # Row 0 — wireless environment
-        self._card_devices  = StatCard("—", "Devices Detected")
-        self._card_ssids    = StatCard("—", "Unique SSIDs")
-        self._card_bssids   = StatCard("—", "Unique BSSIDs")
-        grid.addWidget(self._card_devices,  0, 0)
-        grid.addWidget(self._card_ssids,    0, 1)
-        grid.addWidget(self._card_bssids,   0, 2)
+        self._card_devices  = StatCard("--", "Devices Detected")
+        self._card_ssids    = StatCard("--", "Unique SSIDs")
+        self._card_bssids   = StatCard("--", "Unique BSSIDs")
+        grid.addWidget(self._card_devices, 0, 0)
+        grid.addWidget(self._card_ssids,   0, 1)
+        grid.addWidget(self._card_bssids,  0, 2)
 
-        # Row 1 — frame counts
-        self._card_beacons  = StatCard("—", "Beacon Frames")
-        self._card_probes   = StatCard("—", "Probe Requests")
-        self._card_deauths  = StatCard("—", "Deauth / Disassoc")
-        grid.addWidget(self._card_beacons,  1, 0)
-        grid.addWidget(self._card_probes,   1, 1)
-        grid.addWidget(self._card_deauths,  1, 2)
+        self._card_beacons  = StatCard("--", "Beacon Frames")
+        self._card_probes   = StatCard("--", "Probe Requests")
+        self._card_deauths  = StatCard("--", "Deauth / Disassoc")
+        grid.addWidget(self._card_beacons, 1, 0)
+        grid.addWidget(self._card_probes,  1, 1)
+        grid.addWidget(self._card_deauths, 1, 2)
 
-        # Row 2 — detection
-        self._card_alerts   = StatCard("—", "Alerts Raised")
-        self._card_windows  = StatCard("—", "Analysis Windows")
-        self._card_score    = StatCard("—", "Last Anomaly Score")
-        grid.addWidget(self._card_alerts,   2, 0)
-        grid.addWidget(self._card_windows,  2, 1)
-        grid.addWidget(self._card_score,    2, 2)
+        self._card_alerts   = StatCard("--", "Alerts Raised")
+        self._card_windows  = StatCard("--", "Analysis Windows")
+        self._card_score    = StatCard("--", "Last Anomaly Score")
+        grid.addWidget(self._card_alerts,  2, 0)
+        grid.addWidget(self._card_windows, 2, 1)
+        grid.addWidget(self._card_score,   2, 2)
 
-        # Row 3 — session metadata
-        self._card_frames   = StatCard("—", "Total Frames Parsed")
-        self._card_packets  = StatCard("—", "Total Packets Seen")
-        self._card_duration = StatCard("—", "Session Duration")
+        self._card_frames   = StatCard("--", "Total Frames Parsed")
+        self._card_packets  = StatCard("--", "Total Packets Seen")
+        self._card_duration = StatCard("--", "Session Duration")
         grid.addWidget(self._card_frames,   3, 0)
         grid.addWidget(self._card_packets,  3, 1)
         grid.addWidget(self._card_duration, 3, 2)
 
-        # Stretch padding at the bottom
-        spacer_widget = QWidget()
-        spacer_widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        grid.addWidget(spacer_widget, 4, 0, 1, 3)
+        spacer = QWidget()
+        spacer.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        grid.addWidget(spacer, 4, 0, 1, 3)
 
         scroll.setWidget(self._grid_container)
         root.addWidget(scroll, 1)
