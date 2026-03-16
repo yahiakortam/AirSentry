@@ -21,15 +21,17 @@ from airsentry.ui.views.monitor_view import MonitorView
 from airsentry.ui.views.replay_view import ReplayView
 from airsentry.ui.views.settings_view import SettingsView
 from airsentry.ui.views.summary_view import SummaryView
+from airsentry.ui.views.survey_view import SurveyView
 from airsentry.ui.views.visualize_view import VisualizeView
 from airsentry.ui.worker import MonitorWorker, ReplayWorker
 
 
 IDX_MONITOR   = 0
 IDX_REPLAY    = 1
-IDX_SUMMARY   = 2
-IDX_VISUALIZE = 3
-IDX_SETTINGS  = 4
+IDX_SURVEY    = 2
+IDX_SUMMARY   = 3
+IDX_VISUALIZE = 4
+IDX_SETTINGS  = 5
 
 
 class MainWindow(QMainWindow):
@@ -114,6 +116,7 @@ class MainWindow(QMainWindow):
         nav_items = [
             ("Monitor",   IDX_MONITOR),
             ("Replay",    IDX_REPLAY),
+            ("Survey",    IDX_SURVEY),
             ("Summary",   IDX_SUMMARY),
             ("Visualize", IDX_VISUALIZE),
             ("Settings",  IDX_SETTINGS),
@@ -145,12 +148,14 @@ class MainWindow(QMainWindow):
 
         self._monitor_view   = MonitorView()
         self._replay_view    = ReplayView()
+        self._survey_view    = SurveyView()
         self._summary_view   = SummaryView()
         self._visualize_view = VisualizeView()
         self._settings_view  = SettingsView()
 
         self._stack.addWidget(self._monitor_view)
         self._stack.addWidget(self._replay_view)
+        self._stack.addWidget(self._survey_view)
         self._stack.addWidget(self._summary_view)
         self._stack.addWidget(self._visualize_view)
         self._stack.addWidget(self._settings_view)
